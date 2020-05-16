@@ -8,11 +8,12 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::io::{BufReader, BufWriter};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::{TcpStream, UdpSocket};
 use tokio::stream::{Stream, StreamExt};
 use tokio::sync::oneshot;
 use tokio::task;
 use tokio_util::codec::{BytesCodec, Decoder, Encoder, Framed, LinesCodec};
+use tokio_util::udp::UdpFramed;
 use tracing::{debug, error, info};
 use tracing_attributes::instrument;
 
@@ -30,53 +31,25 @@ pub async fn start(
     tx: Sender<(oneshot::Sender<Payload>, Payload)>,
 ) -> Result<()> {
     // Transport config
-    let mut listener = TcpListener::bind(&config.bind_addr()).await?;
-    debug!("now listening on {}", config.bind_addr());
+    debug!("listening on {}/udp", config.bind_addr());
+    let udp_sock = UdpSocket::bind(&config.bind_addr()).await?;
+    let mut udp_framed = UdpFramed::new(udp_sock, BytesCodec::new());
 
-    // Event loop for the server
-    while let Some(socket) = listener.next().await {
-        let socket = socket?;
-        debug!("handling connection: {:?}", socket);
-        let tx = tx.clone();
+    // Wait on inbound connections
+    while let Some(result) = udp_framed.next().await {
+        let (bytes, addr) = result?;
+        debug!("received {} bytes from {}", bytes.len(), addr);
         task::spawn(async move {
-            if let Err(e) = handle_connection(socket, tx.clone()).await {
-                error!("error handling connection: {}", e);
+            if let Err(e) = handle_inbound(&bytes).await {
+                error!("error while handling inbound bytes: {}", e);
             }
         });
     }
-
-    // Exit
     Ok(())
 }
 
-// Async task to handle connections from the rx socket
-#[instrument]
-async fn handle_connection(
-    socket: TcpStream,
-    mut inbound_tx: Sender<(oneshot::Sender<Payload>, Payload)>,
-) -> Result<()> {
-    let mut framed = Framed::new(socket, BytesCodec::new());
-
-    if let Some(bytes_read) = framed.next().await {
-        let bytes_read = bytes_read?.to_vec();
-
-        // Create a oneshot channel for internal process to send the response back on
-        debug!("creating oneshot for response");
-        let (handler_oneshot_tx, handler_oneshot_rx) = oneshot::channel::<Payload>();
-
-        // Send it internally for handling
-        debug!("pass to internal gossip loop");
-        inbound_tx.send((handler_oneshot_tx, bytes_read)).await?;
-
-        // Wait on the oneshot response, and write it back to the user
-        debug!("wait for oneshot response");
-        let payload = handler_oneshot_rx.await?;
-
-        // Send the response back
-        debug!("write the response to the tcp stream");
-        framed.send(Bytes::from(payload)).await?;
-    }
-
-    // Done with the connection
+// Simple function that passes received bytes along a channel that will handle business logic
+async fn handle_inbound(bytes: &[u8]) -> Result<()> {
+    debug!("started handler");
     Ok(())
 }
