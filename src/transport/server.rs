@@ -1,4 +1,4 @@
-use super::message::{Payload};
+use super::message::Payload;
 use crate::types::{Result, Sender};
 
 use derive_new::new;
@@ -6,11 +6,11 @@ use derive_new::new;
 use getset::Getters;
 use std::net::SocketAddr;
 
-use tokio::net::{UdpSocket};
-use tokio::stream::{StreamExt};
+use tokio::net::UdpSocket;
+use tokio::stream::StreamExt;
 use tokio::sync::oneshot;
 use tokio::task;
-use tokio_util::codec::{BytesCodec};
+use tokio_util::codec::BytesCodec;
 use tokio_util::udp::UdpFramed;
 use tracing::{debug, error};
 use tracing_attributes::instrument;
@@ -24,10 +24,7 @@ pub struct ServerConfig {
 
 // Start method to initialize the server event loop
 #[instrument]
-pub async fn start(
-    config: ServerConfig,
-    tx: Sender<(oneshot::Sender<Payload>, Payload)>,
-) -> Result<()> {
+pub async fn start(config: ServerConfig, tx: Sender<Payload>) -> Result<()> {
     // Transport config
     debug!("listening on {}/udp", config.bind_addr());
     let udp_sock = UdpSocket::bind(&config.bind_addr()).await?;
@@ -36,9 +33,10 @@ pub async fn start(
     // Wait on inbound connections
     while let Some(result) = udp_framed.next().await {
         let (bytes, addr) = result?;
+        let tx = tx.clone();
         debug!("received {} bytes from {}", bytes.len(), addr);
         task::spawn(async move {
-            if let Err(e) = handle_inbound(&bytes).await {
+            if let Err(e) = handle_inbound(&bytes, tx.clone()).await {
                 error!("error while handling inbound bytes: {}", e);
             }
         });
@@ -47,7 +45,8 @@ pub async fn start(
 }
 
 // Simple function that passes received bytes along a channel that will handle business logic
-async fn handle_inbound(_bytes: &[u8]) -> Result<()> {
+async fn handle_inbound(bytes: &[u8], mut tx: Sender<Payload>) -> Result<()> {
     debug!("started handler");
+    tx.send(bytes.to_vec()).await?;
     Ok(())
 }
