@@ -1,4 +1,4 @@
-use super::message::{Message, Payload};
+use super::message::{Message};
 use crate::types::Result;
 use bytes::Bytes;
 use derive_new::new;
