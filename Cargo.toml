@@ -19,6 +19,7 @@ derive-new = "0.5"
 tokio-util = {version = "0.3", features = ["full"] }
 bytes = "0.5"
 futures = "0.3"
+rmp-serde = "0.14.3"
 
 [dev-dependencies]
 tracing-subscriber = "0.2"
