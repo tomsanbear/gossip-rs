@@ -1,0 +1,24 @@
+[package]
+name = "gossip-rs"
+version = "0.1.0"
+authors = ["Thomas Santerre <thomas@santerre.xyz>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tracing = "0.1"
+tracing-attributes = "0.1"
+tracing-futures = "0.2"
+anyhow = "1.0"
+tokio = {version = "0.2", features = ["full"] }
+serde = {version = "1.0", features = ["derive"] }
+rand = "0.7"
+getset = "0.1"
+derive-new = "0.5"
+tokio-util = {version = "0.3", features = ["full"] }
+bytes = "0.5"
+futures = "0.3"
+
+[dev-dependencies]
+tracing-subscriber = "0.2"
