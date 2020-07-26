@@ -35,6 +35,11 @@ impl Nodestore {
         Ok(lock.get(&id).map(ToOwned::to_owned))
     }
 
+    pub async fn get_all(&self) -> Vec<Node> {
+        let lock = self.main_store.lock().await;
+        lock.values().map(ToOwned::to_owned).collect()
+    }
+
     pub async fn update_from_vec(&self, nodes: Vec<Node>) -> Result<()> {
         let mut lock = self.main_store.lock().await;
         for node in nodes {

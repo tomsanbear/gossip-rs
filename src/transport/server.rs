@@ -8,7 +8,6 @@ use std::net::SocketAddr;
 
 use tokio::net::UdpSocket;
 use tokio::stream::StreamExt;
-use tokio::sync::oneshot;
 use tokio::task;
 use tokio_util::codec::BytesCodec;
 use tokio_util::udp::UdpFramed;
